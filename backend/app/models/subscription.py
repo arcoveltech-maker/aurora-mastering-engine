@@ -89,6 +89,8 @@ class Subscription(IDMixin, TimestampMixin, Base):
 
     @property
     def storage_limit_bytes(self) -> Optional[int]:
+        if self.tier == SubscriptionTier.TRIAL:
+            return 1 * 1024 * 1024 * 1024  # 1 GB for trial users
         if self.tier == SubscriptionTier.ARTIST:
             return 5 * 1024 * 1024 * 1024
         if self.tier == SubscriptionTier.PRO:

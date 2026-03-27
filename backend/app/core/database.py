@@ -51,9 +51,14 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
             await session.rollback()
             raise
         finally:
+            # Clear RLS context before closing. Guard against a failed session
+            # so the cleanup execute doesn't raise PendingRollbackError.
             if current_user_id:
-                await session.execute(
-                    text("SELECT set_config('app.current_user_id', '', TRUE)"),
-                )
+                try:
+                    await session.execute(
+                        text("SELECT set_config('app.current_user_id', '', TRUE)"),
+                    )
+                except Exception:
+                    pass
             await session.close()
 

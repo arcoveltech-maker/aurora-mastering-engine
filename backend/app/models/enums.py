@@ -63,7 +63,7 @@ class LimiterMode(str, enum.Enum):
 
 
 class QCCheckStatus(str, enum.Enum):
-    PASS = "pass_"
+    PASS = "pass"
     FAIL = "fail"
     WARNING = "warning"
     REMEDIATED = "remediated"

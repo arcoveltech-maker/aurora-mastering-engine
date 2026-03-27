@@ -35,7 +35,15 @@ class SessionVersion(IDMixin, TimestampMixin, Base):
     is_snapshot: Mapped[bool]
     diff_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     full_manifest: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    parent_version_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    parent_version_id: Mapped[UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("session_versions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     branch_name: Mapped[str] = mapped_column(String(64))
-    created_by: Mapped[str] = mapped_column(String(64))
+    created_by: Mapped[UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
 
