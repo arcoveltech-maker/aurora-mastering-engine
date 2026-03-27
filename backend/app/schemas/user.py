@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -29,7 +30,7 @@ class UserUpdate(BaseModel):
 
 
 class UserResponse(UserBase):
-    id: str
+    id: uuid.UUID
     role: UserRole
     is_email_verified: bool
     created_at: datetime
@@ -37,7 +38,7 @@ class UserResponse(UserBase):
 
 
 class SubscriptionResponse(BaseModel):
-    user_id: str
+    user_id: uuid.UUID
     state: SubscriptionState
     tier: SubscriptionTier
     tracks_used_this_period: int

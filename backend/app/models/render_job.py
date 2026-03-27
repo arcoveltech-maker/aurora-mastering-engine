@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import FLOAT, ForeignKey, Index, String
+from datetime import datetime
+
+from sqlalchemy import FLOAT, DateTime, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -37,8 +39,8 @@ class RenderJob(IDMixin, TimestampMixin, Base):
     error_message: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     output_s3_keys: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
     render_duration_seconds: Mapped[float | None] = mapped_column(FLOAT, nullable=True)
-    started_at: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    completed_at: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     def set_priority_from_tier(self) -> None:
         if self.tier == SubscriptionTier.ENTERPRISE:

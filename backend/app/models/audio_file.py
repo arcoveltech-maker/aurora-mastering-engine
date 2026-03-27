@@ -18,6 +18,7 @@ class AudioFile(IDMixin, TimestampMixin, Base):
 
     user_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

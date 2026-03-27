@@ -8,6 +8,8 @@ EMSCRIPTEN_BINDINGS(aurora) {
   emscripten::class_<aurora::AuroraDSPEngine>("AuroraDSPEngine")
     .constructor<int, int>()
     .function("setSessionParams", &aurora::AuroraDSPEngine::setSessionParams)
+    .function("renderFull", &aurora::AuroraDSPEngine::renderFull,
+              emscripten::allow_raw_pointers())
     .function("getIntegratedLUFS", &aurora::AuroraDSPEngine::getIntegratedLUFS)
     .function("getTruePeakDBTP", &aurora::AuroraDSPEngine::getTruePeakDBTP);
   emscripten::function("getAuroraDSPVersion", &aurora::AuroraDSPEngine::getVersion);
