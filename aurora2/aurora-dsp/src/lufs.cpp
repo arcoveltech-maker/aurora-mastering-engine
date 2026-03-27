@@ -1,44 +1,71 @@
 #include "aurora/lufs.h"
-#include "aurora/biquad.h"
-#include <vector>
+#include <cmath>
 
 namespace aurora {
 
-LUFSMeter::LUFSMeter(int sampleRate, int numChannels)
-    : sampleRate_(sampleRate), numChannels_(numChannels) {}
-
-void LUFSMeter::process(const float* input, int numFrames) {
-  std::vector<float> weightedOutput(numFrames * numChannels_);
-  KWeightingFilter kFilter(sampleRate_);
-
-  for (int ch = 0; ch < numChannels_; ++ch) {
-    kFilter.process(input + ch * numFrames, weightedOutput.data() + ch * numFrames, numFrames);
-  }
-
-  // Compute LUFS metrics (stub for now)
-  integratedLUFS_ = -23.0; // Placeholder value
-}
-
-double LUFSMeter::getIntegratedLUFS() const { return integratedLUFS_; }
-double LUFSMeter::getMomentaryLUFS() const { return -70.0; }
-double LUFSMeter::getShortTermLUFS() const { return -70.0; }
-double LUFSMeter::getLRA() const { return 0.0; }
+// ── KWeightingFilter ───────────────────────────────────────────────────────
 
 KWeightingFilter::KWeightingFilter(int sampleRate) {
-  BiquadCoeffs coeffs1a, coeffs1b;
+  BiquadCoeffs c1, c2;
   if (sampleRate == 48000) {
-    coeffs1a = {1.53512485958697, -2.69169618940638, 1.19839281085285, -1.69065929318241, 0.73248077421585};
-    coeffs1b = {0.99886234236998, -1.99772468473996, 0.99886234236998, -1.99772300507016, 0.99772636440976};
+    // Stage 1: high-shelf pre-filter
+    c1 = {1.53512485958697, -2.69169618940638, 1.19839281085285,
+          -1.69065929318241, 0.73248077421585};
+    // Stage 2: high-pass
+    c2 = {0.99886234236998, -1.99772468473996, 0.99886234236998,
+          -1.99772300507016, 0.99772636440976};
+  } else if (sampleRate == 44100) {
+    c1 = {1.54552898911403, -2.72551298371706, 1.20027895764338,
+          -1.72551298371706, 0.74552898911403};
+    c2 = {0.99887799826089, -1.99775601652179, 0.99887799826089,
+          -1.99775600753555, 0.99775602550802};
+  } else {
+    // Fallback: identity
+    c1 = {}; c2 = {};
   }
-  // Add other sample rates here
-  stage1a_.setCoefficients(coeffs1a);
-  stage1b_.setCoefficients(coeffs1b);
+  stage1a_.setCoefficients(c1);
+  stage1b_.setCoefficients(c2);
 }
 
-void KWeightingFilter::process(const float* input, float* output, int numFrames) {
-  float temp[numFrames];
-  stage1a_.process(input, temp, numFrames);
-  stage1b_.process(temp, output, numFrames);
+float KWeightingFilter::process(float x) {
+  return stage1b_.process(stage1a_.process(x));
 }
+
+void KWeightingFilter::reset() {
+  stage1a_.reset();
+  stage1b_.reset();
+}
+
+// ── LUFSMeter ──────────────────────────────────────────────────────────────
+
+LUFSMeter::LUFSMeter(int sampleRate, int numChannels)
+    : sampleRate_(sampleRate), numChannels_(numChannels),
+      kL_(sampleRate), kR_(sampleRate) {}
+
+void LUFSMeter::reset() {
+  sumSq_ = 0.0;
+  count_ = 0;
+  kL_.reset();
+  kR_.reset();
+}
+
+void LUFSMeter::processFrame(const float* frame) {
+  float wL = kL_.process(frame[0]);
+  float wR = (numChannels_ > 1) ? kR_.process(frame[1]) : wL;
+  // Mean-square over both channels (equal channel weighting for stereo)
+  sumSq_ += static_cast<double>(wL * wL + wR * wR) * 0.5;
+  ++count_;
+}
+
+double LUFSMeter::getIntegratedLUFS() const {
+  if (count_ == 0) return -70.0;
+  double meanSq = sumSq_ / static_cast<double>(count_);
+  if (meanSq <= 0.0) return -70.0;
+  return -0.691 + 10.0 * std::log10(meanSq);
+}
+
+double LUFSMeter::getMomentaryLUFS() const  { return getIntegratedLUFS(); }
+double LUFSMeter::getShortTermLUFS() const  { return getIntegratedLUFS(); }
+double LUFSMeter::getLRA() const            { return 0.0; }
 
 }  // namespace aurora

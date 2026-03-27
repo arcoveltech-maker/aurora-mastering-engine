@@ -15,8 +15,6 @@ export function useAudioEngine() {
     setPlaybackPosition,
     setDuration,
     setWaveformPeaks,
-    setMeters,
-    setMomentaryLUFS,
   } = useAudioStore();
 
   const getCtx = useCallback(() => {

@@ -10,13 +10,15 @@ export function LoudnessTab() {
   const { sessionToken } = useAuth();
   const { updateMacro } = useSessionPersistence(sessionToken);
 
-  const loudness = manifest?.loudness ?? { target_lufs: -14, ceiling_dbtp: -1 };
+  const loudness = manifest?.loudness ?? {};
+  const targetLUFS = loudness.target_lufs ?? -14;
+  const ceilingDBTP = loudness.ceiling_dbtp ?? -1;
 
   return (
     <div className="flex flex-col gap-4 p-4">
       <LoudnessTarget
-        targetLUFS={loudness.target_lufs}
-        ceilingDBTP={loudness.ceiling_dbtp}
+        targetLUFS={targetLUFS}
+        ceilingDBTP={ceilingDBTP}
         onTargetChange={(v) => updateMacro('target_lufs', v)}
         onCeilingChange={(v) => updateMacro('ceiling_dbtp', v)}
       />

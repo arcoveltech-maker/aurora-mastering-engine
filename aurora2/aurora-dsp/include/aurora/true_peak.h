@@ -5,7 +5,8 @@ namespace aurora {
 class TruePeakMeter {
  public:
   TruePeakMeter(int sampleRate, int numChannels);
-  void process(const float* input, int numFrames);
+  void processFrame(const float* frame);   // one interleaved frame
+  void reset();
   double getTruePeakDBTP() const;
   bool exceedsCeiling(double ceilingDBTP) const;
  private:

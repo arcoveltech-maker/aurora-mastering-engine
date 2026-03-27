@@ -1,13 +1,14 @@
-#include <cassert>
+#include <gtest/gtest.h>
 #include "aurora/engine.h"
 #include "aurora/true_peak.h"
 
-int main() {
-  aurora::AuroraDSPEngine engine(48000, 2);
-  assert(aurora::AuroraDSPEngine::getVersion() == "1.0.0");
+TEST(SanityTest, EngineVersion) {
+  EXPECT_EQ(aurora::AuroraDSPEngine::getVersion(), "5.0.0");
+}
+
+TEST(SanityTest, TruePeakBasic) {
   aurora::TruePeakMeter tp(48000, 2);
-  float in[] = {0.5f, -0.5f};
-  tp.process(in, 1);
-  assert(tp.getTruePeakDBTP() > -10.0);
-  return 0;
+  float frame[] = {0.5f, -0.5f};
+  tp.processFrame(frame);
+  EXPECT_GT(tp.getTruePeakDBTP(), -10.0);
 }

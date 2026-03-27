@@ -8,15 +8,19 @@ TruePeakMeter::TruePeakMeter(int sampleRate, int numChannels) {
   numChannels_ = numChannels;
 }
 
-void TruePeakMeter::process(const float* input, int numFrames) {
-  for (int i = 0; i < numFrames * numChannels_; ++i) {
-    double a = std::fabs(static_cast<double>(input[i]));
+void TruePeakMeter::reset() {
+  maxLinear_ = 0.0;
+}
+
+void TruePeakMeter::processFrame(const float* frame) {
+  for (int c = 0; c < numChannels_; ++c) {
+    double a = std::fabs(static_cast<double>(frame[c]));
     if (a > maxLinear_) maxLinear_ = a;
   }
 }
 
 double TruePeakMeter::getTruePeakDBTP() const {
-  if (maxLinear_ <= 0) return -100.0;
+  if (maxLinear_ <= 0.0) return -100.0;
   return 20.0 * std::log10(maxLinear_);
 }
 

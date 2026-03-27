@@ -30,9 +30,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         state: 'active',
         tier: profile.subscription_tier as AuthContextState['subscription'] extends null ? never : NonNullable<AuthContextState['subscription']>['tier'],
         tracksUsed: profile.tracks_used,
-        trackLimit: profile.track_limit,
-        storageUsedBytes: profile.storage_used_bytes,
-        storageLimitBytes: profile.storage_limit_bytes,
+        tracksLimit: profile.track_limit,
+        storageUsed: profile.storage_used_bytes,
+        storageLimit: profile.storage_limit_bytes,
       },
     });
     localStorage.setItem('aurora_token', access_token);
@@ -69,9 +69,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             state: 'active',
             tier: profile.subscription_tier as NonNullable<AuthContextState['subscription']>['tier'],
             tracksUsed: profile.tracks_used,
-            trackLimit: profile.track_limit,
-            storageUsedBytes: profile.storage_used_bytes,
-            storageLimitBytes: profile.storage_limit_bytes,
+            tracksLimit: profile.track_limit,
+            storageUsed: profile.storage_used_bytes,
+            storageLimit: profile.storage_limit_bytes,
           },
         });
       })

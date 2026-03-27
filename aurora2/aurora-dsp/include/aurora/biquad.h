@@ -9,7 +9,10 @@ struct BiquadCoeffs {
 class BiquadFilter {
  public:
   void setCoefficients(const BiquadCoeffs& c);
+  // Bulk double-precision processing
   void process(const double* input, double* output, int numSamples);
+  // Single-sample float processing (for per-frame DSP chains)
+  float process(float x);
   void reset();
  private:
   BiquadCoeffs coeffs_;

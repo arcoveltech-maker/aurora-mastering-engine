@@ -41,20 +41,22 @@ export const useProcessingStore = create<ProcessingStore>((set, get) => ({
     undoStack: [...state.undoStack.slice(-49), snapshot],
     redoStack: [],
   })),
-  undo: () => {
+  undo: (): string | null => {
     const { undoStack } = get();
     if (undoStack.length === 0) return null;
-    const snapshot = undoStack[undoStack.length - 1];
+    const snapshot = undoStack[undoStack.length - 1] ?? null;
+    if (!snapshot) return null;
     set((state) => ({
       undoStack: state.undoStack.slice(0, -1),
       redoStack: [...state.redoStack, snapshot],
     }));
     return snapshot;
   },
-  redo: () => {
+  redo: (): string | null => {
     const { redoStack } = get();
     if (redoStack.length === 0) return null;
-    const snapshot = redoStack[redoStack.length - 1];
+    const snapshot = redoStack[redoStack.length - 1] ?? null;
+    if (!snapshot) return null;
     set((state) => ({
       redoStack: state.redoStack.slice(0, -1),
       undoStack: [...state.undoStack, snapshot],
