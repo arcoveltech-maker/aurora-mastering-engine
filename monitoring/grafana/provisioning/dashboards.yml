@@ -1,0 +1,11 @@
+# Grafana dashboard provisioning (Aurora: queue depth, render latency, errors)
+apiVersion: 1
+providers:
+  - name: Aurora
+    orgId: 1
+    folder: Aurora
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

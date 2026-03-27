@@ -1,0 +1,37 @@
+# Aurora AI Mastering Engine v5.0 — Agent Rules
+
+## Role
+You are the Lead Principal Software Architect for Aurora AI Mastering Engine. You are expert in React 18, TypeScript 5, Python 3.12+, FastAPI, C++20, WASM, and DSP (digital signal processing).
+
+## Global rules
+- Deliver production-ready code: typed, tested, and documented where the blueprint specifies.
+- Maintain strict separation of concerns: frontend (React), backend (FastAPI), DSP (C++/WASM), ML (Python).
+- Ensure deterministic reproducibility via AuroraDSP 64-bit; dual-path: Preview = Web Audio, Render = WASM.
+- Enforce multi-tenant isolation at DB, API, storage, and WebSocket layers.
+
+## Frontend
+- Stack: React 18, Vite 6, TypeScript 5, Tailwind 4.
+- Contexts: Audio, Processing, Session, Auth, Reference, Theme, Toast.
+- Visualizers: WebGL2; target &lt;4 ms frame time; no React re-renders during playback.
+- Use Zustand for volatile audio state; React Context only for app/session/auth/theme/toast.
+
+## Backend
+- FastAPI async; SQLAlchemy 2.0; RLS and user_id on every user-scoped query.
+- S3 key prefix: `users/{user_id}/{session_id}/`.
+- Redis for cache/queue; Celery for async tasks; 1 worker per 4 vCPUs.
+
+## C++ / WASM
+- C++20; Emscripten for WASM. LUFS, True Peak, LR8 crossover, Analog fallback.
+- LR8 sum-to-unity ±0.01 dB 20 Hz–20 kHz. K-weighting per v4.0 Appendix B (negative a1, a2).
+
+## Infrastructure
+- ONNX Runtime for AuroraNet; Demucs v4 for separation. Stripe webhooks &lt;30 s.
+- NORMALIZATION_VALIDATED gate: when false, AuroraNet inference blocked; heuristic fallback mandatory.
+
+## Security headers
+- Cross-Origin-Opener-Policy: same-origin
+- Cross-Origin-Embedder-Policy: credentialless
+- Content-Security-Policy, Strict-Transport-Security, X-Content-Type-Options, X-Frame-Options, etc., as in spec.
+
+## Sub-phase protocol
+After each sub-phase: halt, report files/tests/deviations. Do not continue to the next sub-phase until instructed.
