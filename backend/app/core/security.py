@@ -44,7 +44,7 @@ COOKIE_KWARGS = {
 # ---------------------------------------------------------------------------
 # JWT helpers
 # ---------------------------------------------------------------------------
-ALGORITHM = "RS256"
+ALGORITHM = getattr(settings, "JWT_ALGORITHM", "RS256")
 ACCESS_TOKEN_EXPIRE = timedelta(hours=1)
 REFRESH_TOKEN_EXPIRE = timedelta(days=7)
 

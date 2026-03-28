@@ -63,7 +63,7 @@ async def get_usage(
 ):
     sub = await crud.get_subscription(db, user_id=str(current_user.id))
     tier = sub.tier.value if sub and hasattr(sub.tier, "value") else (sub.tier if sub else "trial")
-    tracks_used = getattr(sub, "track_count", 0) or 0
+    tracks_used = getattr(sub, "tracks_used_this_period", 0) or 0
     storage_used = getattr(sub, "storage_used_bytes", 0) or 0
     return {
         "tracks_used": tracks_used,

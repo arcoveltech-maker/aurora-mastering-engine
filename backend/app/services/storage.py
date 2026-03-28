@@ -3,6 +3,8 @@ S3/MinIO storage service.
 """
 from __future__ import annotations
 
+import asyncio
+import functools
 import re
 from typing import Optional
 
@@ -43,58 +45,86 @@ def validate_key_ownership(key: str, user_id: str) -> None:
 
 
 async def generate_presigned_upload_url(key: str, content_type: str, expires: int = 300) -> str:
+    loop = asyncio.get_event_loop()
     client = _get_client()
-    url = client.generate_presigned_url(
-        "put_object",
-        Params={
-            "Bucket": settings.S3_BUCKET,
-            "Key": key,
-            "ContentType": content_type,
-        },
-        ExpiresIn=expires,
+    url = await loop.run_in_executor(
+        None,
+        functools.partial(
+            client.generate_presigned_url,
+            "put_object",
+            Params={"Bucket": settings.S3_BUCKET, "Key": key, "ContentType": content_type},
+            ExpiresIn=expires,
+        ),
     )
     return url
 
 
 async def generate_presigned_download_url(key: str, expires: int = 3600) -> str:
+    loop = asyncio.get_event_loop()
     client = _get_client()
-    url = client.generate_presigned_url(
-        "get_object",
-        Params={"Bucket": settings.S3_BUCKET, "Key": key},
-        ExpiresIn=expires,
+    url = await loop.run_in_executor(
+        None,
+        functools.partial(
+            client.generate_presigned_url,
+            "get_object",
+            Params={"Bucket": settings.S3_BUCKET, "Key": key},
+            ExpiresIn=expires,
+        ),
     )
     return url
 
 
 async def upload_file(key: str, data: bytes, content_type: str = "application/octet-stream") -> None:
+    loop = asyncio.get_event_loop()
     client = _get_client()
-    client.put_object(Bucket=settings.S3_BUCKET, Key=key, Body=data, ContentType=content_type)
+    await loop.run_in_executor(
+        None,
+        functools.partial(
+            client.put_object,
+            Bucket=settings.S3_BUCKET,
+            Key=key,
+            Body=data,
+            ContentType=content_type,
+        ),
+    )
 
 
 async def delete_file(key: str) -> None:
+    loop = asyncio.get_event_loop()
     client = _get_client()
     try:
-        client.delete_object(Bucket=settings.S3_BUCKET, Key=key)
+        await loop.run_in_executor(
+            None,
+            functools.partial(client.delete_object, Bucket=settings.S3_BUCKET, Key=key),
+        )
     except ClientError:
         pass
 
 
 async def object_exists(key: str) -> bool:
+    loop = asyncio.get_event_loop()
     client = _get_client()
     try:
-        client.head_object(Bucket=settings.S3_BUCKET, Key=key)
+        await loop.run_in_executor(
+            None,
+            functools.partial(client.head_object, Bucket=settings.S3_BUCKET, Key=key),
+        )
         return True
     except ClientError:
         return False
 
 
 async def get_object_size(key: str) -> int:
+    loop = asyncio.get_event_loop()
     client = _get_client()
-    resp = client.head_object(Bucket=settings.S3_BUCKET, Key=key)
+    resp = await loop.run_in_executor(
+        None,
+        functools.partial(client.head_object, Bucket=settings.S3_BUCKET, Key=key),
+    )
     return resp["ContentLength"]
 
 
-async def get_user_storage_usage(user_id: str) -> int:
+def _get_user_storage_usage_sync(user_id: str) -> int:
     client = _get_client()
     prefix = f"users/{user_id}/"
     total = 0
@@ -105,7 +135,12 @@ async def get_user_storage_usage(user_id: str) -> int:
     return total
 
 
-async def delete_user_data(user_id: str) -> None:
+async def get_user_storage_usage(user_id: str) -> int:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _get_user_storage_usage_sync, user_id)
+
+
+def _delete_user_data_sync(user_id: str) -> None:
     client = _get_client()
     prefix = f"users/{user_id}/"
     paginator = client.get_paginator("list_objects_v2")
@@ -113,3 +148,8 @@ async def delete_user_data(user_id: str) -> None:
         objects = [{"Key": o["Key"]} for o in page.get("Contents", [])]
         if objects:
             client.delete_objects(Bucket=settings.S3_BUCKET, Delete={"Objects": objects})
+
+
+async def delete_user_data(user_id: str) -> None:
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _delete_user_data_sync, user_id)

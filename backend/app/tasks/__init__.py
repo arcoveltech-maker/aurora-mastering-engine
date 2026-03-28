@@ -11,6 +11,11 @@ celery_app.conf.update(
     result_backend=settings.REDIS_URL,
     task_routes={
         "aurora.render_master": {"queue": "render_default"},
+        "aurora.render_master_priority": {"queue": "render_priority"},
+    },
+    task_queues={
+        "render_default": {"exchange": "render_default", "routing_key": "render_default"},
+        "render_priority": {"exchange": "render_priority", "routing_key": "render_priority"},
     },
     worker_prefetch_multiplier=1,
     task_soft_time_limit=600,

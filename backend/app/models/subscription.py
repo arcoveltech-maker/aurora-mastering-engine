@@ -77,15 +77,13 @@ class Subscription(IDMixin, TimestampMixin, Base):
 
     @property
     def tracks_limit(self) -> Optional[int]:
-        if self.state == SubscriptionState.TRIAL:
-            return 3
-        if self.state == SubscriptionState.ACTIVE_ARTIST:
-            return 100
-        if self.state == SubscriptionState.ACTIVE_PRO:
-            return 500
-        if self.state == SubscriptionState.ACTIVE_ENTERPRISE:
-            return None
-        return 0
+        from app.core.feature_gates import TIER_FEATURES
+        features = TIER_FEATURES.get(self.tier, {})
+        return features.get("tracks_per_period")
+
+    @property
+    def track_count(self) -> int:
+        return self.tracks_used_this_period or 0
 
     @property
     def storage_limit_bytes(self) -> Optional[int]:

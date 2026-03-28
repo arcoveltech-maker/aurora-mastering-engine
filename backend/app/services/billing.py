@@ -25,10 +25,10 @@ def _get_stripe():
     return stripe
 
 
-def _tier_price_map() -> dict:
+def _get_tier_price_map() -> dict:
     return {
-        "artist": settings.STRIPE_PRICE_ARTIST_ID or "",
-        "pro": settings.STRIPE_PRICE_PRO_ID or "",
+        "artist": getattr(settings, "STRIPE_PRICE_ARTIST_ID", "") or "",
+        "pro": getattr(settings, "STRIPE_PRICE_PRO_ID", "") or "",
     }
 
 
@@ -53,7 +53,7 @@ class StripeService:
 
     async def create_checkout_session(self, user: User, tier: str, db: AsyncSession) -> str:
         s = _get_stripe()
-        price_id = _tier_price_map().get(tier)
+        price_id = _get_tier_price_map().get(tier)
         if not price_id:
             raise AuroraHTTPException("AURORA-E701", f"Invalid tier or unconfigured price: {tier}")
         customer_id = await self.get_or_create_stripe_customer(user, db)

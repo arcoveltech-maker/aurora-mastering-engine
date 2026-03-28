@@ -89,7 +89,16 @@ async def start_render(
         )
     except Exception as e:
         import logging
-        logging.getLogger("aurora.render").warning("Celery dispatch failed: %s", e)
+        logger = logging.getLogger("aurora.render")
+        logger.error("Celery dispatch failed for job %s: %s", render_job.id, e)
+        await crud.update_render_job(
+            db,
+            user_id=str(current_user.id),
+            job_id=str(render_job.id),
+            status="failed",
+            error_message=f"Dispatch failed: {e}",
+        )
+        raise AuroraHTTPException("AURORA-E900", f"Failed to queue render job: {e}")
 
     return {"job_id": str(render_job.id), "status": "queued"}
 

@@ -106,22 +106,6 @@ async def update_subscription_state(
     return sub
 
 
-async def increment_track_usage(db: AsyncSession, *, user_id: str, delta: int = 1) -> None:
-    sub = await get_subscription(db, user_id=user_id)
-    if not sub:
-        return
-    sub.tracks_used_this_period += delta
-    await db.flush()
-
-
-async def reset_track_usage(db: AsyncSession, *, user_id: str) -> None:
-    sub = await get_subscription(db, user_id=user_id)
-    if not sub:
-        return
-    sub.tracks_used_this_period = 0
-    await db.flush()
-
-
 async def update_storage_usage(db: AsyncSession, *, user_id: str, delta_bytes: int) -> None:
     sub = await get_subscription(db, user_id=user_id)
     if not sub:

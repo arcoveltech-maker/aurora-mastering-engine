@@ -8,8 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.errors import AuroraHTTPException, aurora_exception_handler, unhandled_exception_handler
-from app.core.observability import RequestIDMiddleware, health_deep, health_shallow
-from app.api.middleware import SecurityHeadersMiddleware, RateLimitMiddleware
+from app.core.observability import health_deep, health_shallow
+from app.api.middleware import SecurityHeadersMiddleware, RequestIDMiddleware, RateLimitMiddleware
 
 # Import all routers
 from app.api.routes.auth import router as auth_router
@@ -45,7 +45,7 @@ app.add_middleware(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.AURORA_ALLOWED_ORIGINS.split(","),
+    allow_origins=[o.strip() for o in settings.AURORA_ALLOWED_ORIGINS.split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

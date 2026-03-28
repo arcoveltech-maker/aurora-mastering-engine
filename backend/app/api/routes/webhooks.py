@@ -94,9 +94,9 @@ async def _handle_subscription_created(db: AsyncSession, data: dict):
     if not user:
         logger.warning("No user found for Stripe customer %s", customer_id)
         return
-    tier = _price_to_tier(
-        data.get("items", {}).get("data", [{}])[0].get("price", {}).get("id", "")
-    )
+    items_data = data.get("items", {}).get("data", [])
+    price_id = items_data[0].get("price", {}).get("id", "") if items_data else ""
+    tier = _price_to_tier(price_id)
     sub = await crud.get_subscription(db, user_id=str(user.id))
     if sub:
         from app.models.enums import SubscriptionState, SubscriptionTier
@@ -158,10 +158,12 @@ async def _handle_payment_failed(db: AsyncSession, data: dict):
 
 
 def _price_to_tier(price_id: str) -> str:
-    artist_id = settings.STRIPE_PRICE_ARTIST_ID or ""
-    pro_id = settings.STRIPE_PRICE_PRO_ID or ""
-    if price_id == artist_id:
+    artist_id = getattr(settings, "STRIPE_PRICE_ARTIST_ID", "") or ""
+    pro_id = getattr(settings, "STRIPE_PRICE_PRO_ID", "") or ""
+    if price_id and price_id == artist_id:
         return "artist"
-    if price_id == pro_id:
+    if price_id and price_id == pro_id:
         return "pro"
+    if price_id:
+        logger.warning("Unknown Stripe price ID '%s' — defaulting to trial tier", price_id)
     return "trial"
