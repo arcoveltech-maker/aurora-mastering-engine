@@ -18,6 +18,8 @@ from app.api.routes.upload import router as upload_router
 from app.api.routes.render import router as render_router
 from app.api.routes.billing import router as billing_router
 from app.api.routes.webhooks import router as webhooks_router
+from app.api.routes.chat import router as chat_router
+from app.api.routes.collab_ws import router as collab_router
 
 
 @asynccontextmanager
@@ -61,6 +63,8 @@ app.include_router(upload_router, prefix=API_PREFIX)
 app.include_router(render_router, prefix=API_PREFIX)
 app.include_router(billing_router, prefix=API_PREFIX)
 app.include_router(webhooks_router, prefix=API_PREFIX)
+app.include_router(chat_router, prefix=API_PREFIX)
+app.include_router(collab_router)  # WebSocket routes use full path
 
 
 # ---------------------------------------------------------------------------

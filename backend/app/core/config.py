@@ -27,10 +27,17 @@ class Settings(BaseSettings):
     STRIPE_PRICE_ARTIST_ID: str | None = None
     STRIPE_PRICE_PRO_ID: str | None = None
 
+    SECRET_KEY: str = "change-me-in-production-minimum-32-chars"
+
     NORMALIZATION_VALIDATED: bool = False
     COLLAB_MAX_USERS_PER_SESSION: int = 8
     AURORA_CERT_SIGNING_KEY_PATH: str | None = None
     AURORA_ALLOWED_ORIGINS: str = "http://localhost:5173,http://localhost:80"
+
+    # DSP / ML metadata
+    AURORA_DSP_VERSION: str = "5.0.0"
+    AURORA_DSP_WASM_HASH: str = ""
+    ONNX_MODEL_PATH: str | None = None
 
     # Domain and environment
     DOMAIN: str = "localhost"

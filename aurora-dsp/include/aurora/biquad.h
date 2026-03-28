@@ -9,6 +9,9 @@ struct BiquadCoeffs {
 class BiquadFilter {
  public:
   void setCoefficients(const BiquadCoeffs& c);
+  // Process a single sample and return the output
+  float process(float x);
+  // Process a block (double precision)
   void process(const double* input, double* output, int numSamples);
   void reset();
  private:

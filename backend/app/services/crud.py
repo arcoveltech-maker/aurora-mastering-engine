@@ -302,6 +302,22 @@ async def get_audio_file(
     return result.scalar_one_or_none()
 
 
+async def get_session_audio_file(
+    db: AsyncSession,
+    *,
+    user_id: str,
+    session_id: str,
+) -> AudioFile | None:
+    """Return the primary (most recent) audio file for a session, scoped to user."""
+    result = await db.execute(
+        select(AudioFile)
+        .where(AudioFile.user_id == user_id, AudioFile.session_id == session_id)
+        .order_by(AudioFile.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def list_audio_files(
     db: AsyncSession,
     *,

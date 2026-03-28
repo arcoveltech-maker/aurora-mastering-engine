@@ -1,0 +1,327 @@
+name: Aurora CI
+
+on:
+  push:
+    branches: [main, "build/**", "feat/**"]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Backend — Python / FastAPI
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-22.04
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: aurora
+          POSTGRES_PASSWORD: aurora_test
+          POSTGRES_DB: aurora_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://aurora:aurora_test@localhost:5432/aurora_test
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY: ci-test-secret-key-32-chars-minimum
+      AURORA_ALLOWED_ORIGINS: "http://localhost:5173"
+      S3_ENDPOINT_URL: ""
+      S3_BUCKET: aurora-test-bucket
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      ANTHROPIC_API_KEY: sk-ant-ci-placeholder
+      NORMALIZATION_VALIDATED: "false"
+      AURORA_DSP_VERSION: "5.0.0-ci"
+      AURORA_DSP_WASM_HASH: "ci-placeholder"
+      ONNX_MODEL_PATH: ""
+      ENVIRONMENT: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov httpx anyio
+
+      - name: Run database migrations
+        working-directory: backend
+        run: alembic upgrade head
+        continue-on-error: true  # migrations may not exist in CI yet
+
+      - name: Run backend unit tests
+        working-directory: backend
+        run: |
+          pytest tests/unit/ -v \
+            --tb=short \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            -x
+        continue-on-error: false
+
+      - name: Run backend integration tests
+        working-directory: backend
+        run: |
+          pytest tests/integration/ -v \
+            --tb=short \
+            -x \
+            --timeout=60
+        continue-on-error: true
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: backend/coverage.xml
+          flags: backend
+        continue-on-error: true
+
+  # ---------------------------------------------------------------------------
+  # Frontend — TypeScript / React / Vite
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend Build & Type-check
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type-check
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint --if-present
+        continue-on-error: true
+
+      - name: Build
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: /api
+          VITE_WS_URL: /ws
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # DSP — C++ / CMake
+  # ---------------------------------------------------------------------------
+  dsp:
+    name: DSP C++ Build & Tests
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake ninja-build g++ libgtest-dev
+
+      - name: Configure CMake (native)
+        working-directory: aurora-dsp
+        run: |
+          cmake -B build-native \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=ON
+
+      - name: Build native DSP library
+        working-directory: aurora-dsp
+        run: cmake --build build-native --parallel
+
+      - name: Run C++ unit tests
+        working-directory: aurora-dsp/build-native
+        run: ctest --output-on-failure --timeout 60
+
+      # WASM build (optional — requires Emscripten)
+      - name: Cache Emscripten
+        id: cache-emsdk
+        uses: actions/cache@v4
+        with:
+          path: ~/emsdk
+          key: emsdk-3.1.50
+
+      - name: Install Emscripten
+        if: steps.cache-emsdk.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git ~/emsdk
+          ~/emsdk/emsdk install 3.1.50
+          ~/emsdk/emsdk activate 3.1.50
+
+      - name: Build WASM module
+        working-directory: aurora-dsp
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          bash build_wasm.sh
+        continue-on-error: true  # WASM build is best-effort in CI
+
+      - name: Upload WASM artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurora-dsp-wasm
+          path: |
+            aurora-dsp/dist/aurora_dsp.js
+            aurora-dsp/dist/aurora_dsp.wasm
+          retention-days: 30
+        continue-on-error: true
+
+  # ---------------------------------------------------------------------------
+  # E2E — Full workflow smoke test
+  # ---------------------------------------------------------------------------
+  e2e:
+    name: E2E Smoke Tests
+    runs-on: ubuntu-22.04
+    needs: [backend, frontend]
+    if: github.event_name == 'push'
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: aurora
+          POSTGRES_PASSWORD: aurora_test
+          POSTGRES_DB: aurora_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://aurora:aurora_test@localhost:5432/aurora_test
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY: ci-test-secret-key-32-chars-minimum
+      AURORA_ALLOWED_ORIGINS: "http://localhost:5173"
+      S3_ENDPOINT_URL: ""
+      S3_BUCKET: aurora-test-bucket
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      ANTHROPIC_API_KEY: sk-ant-ci-placeholder
+      NORMALIZATION_VALIDATED: "false"
+      AURORA_DSP_VERSION: "5.0.0-ci"
+      AURORA_DSP_WASM_HASH: "ci-placeholder"
+      ONNX_MODEL_PATH: ""
+      ENVIRONMENT: test
+      API_BASE_URL: http://localhost:8000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx anyio
+
+      - name: Run DB migrations
+        working-directory: backend
+        run: alembic upgrade head
+        continue-on-error: true
+
+      - name: Start API server
+        working-directory: backend
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 4
+          curl -f http://localhost:8000/api/health || exit 1
+
+      - name: Run E2E tests
+        run: |
+          pytest tests/e2e/ -v \
+            --tb=short \
+            --timeout=120 \
+            -x
+
+  # ---------------------------------------------------------------------------
+  # Summary gate
+  # ---------------------------------------------------------------------------
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-22.04
+    needs: [backend, frontend, dsp]
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          if [[ "${{ needs.backend.result }}" == "failure" ]]; then
+            echo "Backend tests failed"
+            exit 1
+          fi
+          if [[ "${{ needs.frontend.result }}" == "failure" ]]; then
+            echo "Frontend build failed"
+            exit 1
+          fi
+          if [[ "${{ needs.dsp.result }}" == "failure" ]]; then
+            echo "DSP build failed"
+            exit 1
+          fi
+          echo "All required jobs passed"
